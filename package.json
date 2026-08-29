@@ -1,0 +1,16 @@
+{
+  "name": "fluent-public-speaking",
+  "private": true,
+  "version": "1.0.0",
+  "description": "FLUENT — Public Speaking & Technical Communication Practice App",
+  "type": "module",
+  "scripts": {
+    "dev": "vite || python server.py",
+    "build": "vite build || python build.py",
+    "preview": "vite preview",
+    "serve": "python server.py"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
