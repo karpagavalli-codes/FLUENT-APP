@@ -214,3 +214,4 @@ const FluentStorage = {
     });
   }
 };
+window.FluentStorage = FluentStorage;

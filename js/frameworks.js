@@ -92,3 +92,4 @@ const FluentFrameworks = {
     return this.FRAMEWORKS.find(f => f.id === id) || this.FRAMEWORKS[0];
   }
 };
+window.FluentFrameworks = FluentFrameworks;

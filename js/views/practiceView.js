@@ -388,3 +388,4 @@ const FluentPracticeView = {
     });
   }
 };
+window.FluentPracticeView = FluentPracticeView;

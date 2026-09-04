@@ -140,6 +140,7 @@ const FluentApp = {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 };
+window.FluentApp = FluentApp;
 
 // Initialize Application when DOM ready
 document.addEventListener('DOMContentLoaded', () => {

@@ -103,3 +103,4 @@ const FluentVocabulary = {
     return this.VOCAB_BANK.filter(v => v.category === category);
   }
 };
+window.FluentVocabulary = FluentVocabulary;

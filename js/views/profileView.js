@@ -198,3 +198,4 @@ const FluentProfileView = {
     }
   }
 };
+window.FluentProfileView = FluentProfileView;

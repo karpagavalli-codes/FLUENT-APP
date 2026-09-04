@@ -27,3 +27,4 @@ const FluentLogo = {
     }
   }
 };
+window.FluentLogo = FluentLogo;

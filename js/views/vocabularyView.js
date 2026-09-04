@@ -87,3 +87,4 @@ const FluentVocabularyView = {
     });
   }
 };
+window.FluentVocabularyView = FluentVocabularyView;

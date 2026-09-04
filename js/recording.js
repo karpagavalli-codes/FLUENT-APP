@@ -191,3 +191,4 @@ const FluentRecorder = {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 };
+window.FluentRecording = FluentRecording;

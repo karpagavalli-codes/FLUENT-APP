@@ -52,3 +52,4 @@ const FluentHistoryView = {
     });
   }
 };
+window.FluentHistoryView = FluentHistoryView;

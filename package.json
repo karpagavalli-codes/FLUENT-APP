@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite || python server.py",
-    "build": "vite build || python build.py",
+    "build": "python build.py",
     "preview": "vite preview",
     "serve": "python server.py"
   },

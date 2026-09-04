@@ -155,3 +155,4 @@ const FluentProgressView = {
     });
   }
 };
+window.FluentProgressView = FluentProgressView;

@@ -209,3 +209,4 @@ const FluentTopics = {
     return { id, text, category, difficulty, desc };
   }
 };
+window.FluentTopics = FluentTopics;

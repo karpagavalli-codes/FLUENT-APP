@@ -259,3 +259,4 @@ const FluentHomeView = {
     return `${days} days ago`;
   }
 };
+window.FluentHomeView = FluentHomeView;

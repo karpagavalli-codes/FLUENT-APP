@@ -179,3 +179,4 @@ const FluentAnalyzer = {
     };
   }
 };
+window.FluentAnalyzer = FluentAnalyzer;

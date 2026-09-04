@@ -51,3 +51,4 @@ const FluentFrameworksView = {
     });
   }
 };
+window.FluentFrameworksView = FluentFrameworksView;
