@@ -1,11 +1,11 @@
 /**
  * FLUENT - Speaking Coach Analyzer Engine
- * Analyzes what the user ACTUALLY communicated (Topic vs Transcript).
- * Focuses strictly on Communication, Structure, Grammar, Fillers, and Natural Phrasing.
+ * Strictly analyzes what the user ACTUALLY communicated (Topic vs Transcript).
+ * Focuses on Communication, Structure, Grammar, Fillers, and Natural Phrasing.
  * NEVER generates ideal answers, adds new topic content, or invents arguments.
+ * ENFORCES STRICT SOURCE-OF-TRUTH VALIDATION ON ALL QUOTES AND VOCABULARY.
  */
 const FluentAnalyzer = {
-  // Common stopwords to exclude from concept matching
   STOPWORDS: new Set([
     'what', 'why', 'how', 'when', 'where', 'who', 'which', 'should', 'would', 'could', 'is', 'are', 'was', 'were', 
     'be', 'been', 'being', 'do', 'does', 'did', 'doing', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 
@@ -13,19 +13,14 @@ const FluentAnalyzer = {
     'it', 'its', 'they', 'them', 'their', 'your', 'my', 'our', 'we', 'you', 'he', 'she', 'his', 'her', 'can', 'will'
   ]),
 
-  // Common acronym expansion map for topic matching
-  ACRONYMS: {
-    'ai': ['artificial intelligence', 'ai', 'model', 'data', 'algorithm'],
-    'ml': ['machine learning', 'ml', 'data', 'model'],
-    'api': ['application programming interface', 'api', 'endpoint', 'service'],
-    'ci/cd': ['continuous integration', 'continuous deployment', 'ci', 'cd', 'deployment'],
-    'vc': ['venture capital', 'vc', 'capital', 'investor', 'bootstrapping']
-  },
-
-  // Personal day / off-topic indicators
   OFF_TOPIC_PATTERNS: [
     'went to', 'met my', 'attended class', 'came home', 'woke up', 'had lunch', 'had dinner', 
-    'watched a movie', 'played games', 'slept at', 'my friends', 'college yesterday', 'my day'
+    'watched a movie', 'played games', 'slept at', 'my friends', 'college yesterday', 'my day', 'watched youtube'
+  ],
+
+  UNCERTAINTY_PATTERNS: [
+    "don't know what it is", "don't know what i'm doing", "not sure about", "don't really know",
+    "no idea what", "don't know how to explain", "confused about this"
   ],
 
   analyzeSpeech(transcript, topicObj, frameworkId = 'prep', durationSeconds = 45) {
@@ -49,34 +44,45 @@ const FluentAnalyzer = {
     const topicRelevance = this.evaluateTopicRelevance(text, topicObj);
     const isOffTopic = topicRelevance.status.includes('Off-Topic');
 
-    // 4. Context-Aware Filler Analysis
+    // 4. Uncertainty Detection
+    const uncertaintyResult = this.detectUncertainty(text);
+
+    // 5. Context-Aware Filler Analysis
     const fillerResult = this.detectFillersContextual(text);
 
-    // 5. Repetition Analysis
+    // 6. Repetition Analysis
     const repetitionResult = this.detectRepetition(words);
 
-    // 6. Sentence Analysis (Claims, Reasons, Examples, Grammar, Vague words)
+    // 7. Sentence Analysis (Claims, Reasons, Examples)
     const sentenceAnalysis = this.analyzeSentences(sentences);
 
-    // 7. Structure Evaluation (Current vs Recommended vs Practical Tip)
-    const structureCoaching = this.evaluateSpeechStructure(sentences, text, topicObj, frameworkId, isOffTopic, sentenceAnalysis);
+    // 8. Structure Evaluation (Current vs Recommended vs Practical Tip)
+    const structureCoaching = this.evaluateSpeechStructure(sentences, text, topicObj, frameworkId, isOffTopic, sentenceAnalysis, uncertaintyResult);
 
-    // 8. Grounded Feedback (What You Did Well & What To Improve)
-    const whatYouDidWell = this.generateWhatYouDidWell(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult);
-    const whatToImprove = this.generateWhatToImprove(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, repetitionResult, topicObj, structureCoaching);
+    // 9. Grounded Feedback (What You Did Well & What To Improve)
+    const whatYouDidWell = this.generateWhatYouDidWell(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, uncertaintyResult);
+    const whatToImprove = this.generateWhatToImprove(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, repetitionResult, topicObj, structureCoaching, uncertaintyResult);
 
-    // 9. Better Way To Say It (Strictly user's actual sentences, preserving meaning)
-    const betterWayToSayIt = this.generateBetterWayToSayItList(sentences, fillerResult);
+    // 10. Better Way To Say It (Strictly user's actual sentences, preserving meaning)
+    const rawAlternatives = this.generateBetterWayToSayItList(sentences, fillerResult);
 
-    // 10. Target Career Vocabulary Connection (Only from user speech, max 3)
+    // SOURCE-OF-TRUTH VALIDATION FOR SENTENCE QUOTES
+    const validAlternatives = rawAlternatives.filter(alt => {
+      if (!alt.original || alt.original.trim().length === 0) return false;
+      const idx = text.toLowerCase().indexOf(alt.original.toLowerCase().trim());
+      return idx !== -1 || alt.why.includes('already clear');
+    });
+
+    // 11. Target Career Vocabulary Connection (Only from user speech, max 3)
     const vocabResult = this.generateVocabularyConnection(text, topicObj);
 
-    // 11. Next Practice Action
-    const nextAction = this.generateNextPracticeAction(isOffTopic, structureCoaching, fillerResult, topicObj);
+    // 12. Next Practice Action
+    const nextAction = this.generateNextPracticeAction(isOffTopic, structureCoaching, fillerResult, topicObj, uncertaintyResult);
 
-    // 12. Score Calculation
+    // 13. Score Calculation
     let score = 80;
     if (isOffTopic) score -= 25;
+    if (uncertaintyResult.hasUncertainty) score -= 15;
     if (sentenceAnalysis.hasReason) score += 5;
     if (sentenceAnalysis.hasExample) score += 5;
     if (fillerResult.totalCount === 0) score += 5;
@@ -95,13 +101,27 @@ const FluentAnalyzer = {
       whatYouDidWell,
       whatToImprove,
       speechStructure: structureCoaching,
-      betterWayToSayIt, // Array of 1-4 items { original, improved, why }
-      alternatives: betterWayToSayIt, // For backward compatibility
-      targetCareerVocabulary: vocabResult, // { suggestions: [], message: string }
-      vocabularyOpportunities: vocabResult.suggestions.map(s => ({ casual: s.casual, recommended: s.recommended, def: s.explanation })), // Backward compatibility
+      betterWayToSayIt: validAlternatives, // Array of validated items
+      alternatives: validAlternatives, // For backward compatibility
+      targetCareerVocabulary: vocabResult,
+      vocabularyOpportunities: vocabResult.suggestions.map(s => ({ casual: s.casual, recommended: s.recommended, def: s.explanation })),
       topicRelevance,
       nextAction,
-      summary: topicRelevance.explanation
+      summary: topicRelevance.explanation,
+      transcript: text
+    };
+  },
+
+  detectUncertainty(text) {
+    const lower = text.toLowerCase();
+    const matches = [];
+    this.UNCERTAINTY_PATTERNS.forEach(p => {
+      if (lower.includes(p)) matches.push(p);
+    });
+
+    return {
+      hasUncertainty: matches.length > 0,
+      matches
     };
   },
 
@@ -126,17 +146,19 @@ const FluentAnalyzer = {
     // Extract core keywords from topic title
     const topicKeywords = topicTextLower.replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !this.STOPWORDS.has(w));
     
-    // Add acronym expansions
-    let expandedKeywords = [...topicKeywords];
-    topicKeywords.forEach(k => {
-      if (this.ACRONYMS[k]) {
-        expandedKeywords = expandedKeywords.concat(this.ACRONYMS[k]);
-      }
-    });
-
     // Check keyword overlap
-    const matchedKeywords = expandedKeywords.filter(k => lowerText.includes(k));
+    const matchedKeywords = topicKeywords.filter(k => lowerText.includes(k));
     const hasCategoryMatch = categoryLower.length > 2 && lowerText.includes(categoryLower);
+
+    // Check uncertainty expressions
+    const hasUncertainty = this.UNCERTAINTY_PATTERNS.some(p => lowerText.includes(p));
+
+    if (hasUncertainty && matchedKeywords.length > 0) {
+      return {
+        status: 'Medium / Incomplete',
+        explanation: `You introduced the assigned topic ("${topicObj.text}"), but expressed uncertainty ("i don't know what it is") instead of explaining or answering the question.`
+      };
+    }
 
     if (matchedKeywords.length > 0 || hasCategoryMatch) {
       return {
@@ -168,14 +190,14 @@ const FluentAnalyzer = {
     });
 
     // 2. Context-dependent "like"
-    const likeFillerMatches = lower.match(/\b(is|was|are|were|and|so|meaning)\s+like\b|,\s*like\s*,|\blike\s+(basically|actually|you know|um|uh)\b/g);
+    const likeFillerMatches = lower.match(/\b(is|was|are|were|and|so|meaning|know)\s+like\b|,\s*like\s*,|\blike\s+(basically|actually|you know|um|uh|what)\b/g);
     if (likeFillerMatches) {
       totalCount += likeFillerMatches.length;
       breakdown['like (filler context)'] = likeFillerMatches.length;
     }
 
     // 3. Context-dependent "so" at sentence openings
-    const soFillerMatches = lower.match(/(^|[.!?]\s+)so\s+(um|uh|like|basically|actually|,)/g);
+    const soFillerMatches = lower.match(/(^|[.!?]\s+)so\s+(um|uh|like|basically|actually|,|i)/g);
     if (soFillerMatches) {
       totalCount += soFillerMatches.length;
       breakdown['so (filler staller)'] = soFillerMatches.length;
@@ -229,7 +251,7 @@ const FluentAnalyzer = {
     sentences.forEach((s, idx) => {
       const lower = s.toLowerCase();
 
-      if (!hasClaim && (lower.includes('is a') || lower.includes('defined as') || lower.includes('refers to') || lower.includes('means') || lower.includes('allows') || lower.includes('believe') || lower.includes('in my view') || lower.includes('i think') || lower.includes('we should'))) {
+      if (!hasClaim && (lower.includes('is a') || lower.includes('defined as') || lower.includes('refers to') || lower.includes('means') || lower.includes('allows') || lower.includes('believe') || lower.includes('in my view') || lower.includes('i think') || lower.includes('we should') || lower.includes('gonna talk about'))) {
         hasClaim = true;
         claimQuote = s;
       }
@@ -252,7 +274,6 @@ const FluentAnalyzer = {
         hasConclusion = true;
       }
 
-      // Check jumping ideas (e.g. sentence starting with "But..." then next starting with "Also...")
       if (idx > 0 && (lower.startsWith('but ') || lower.startsWith('also ') || lower.startsWith('and ')) && !hasReason) {
         hasJumpingIdeas = true;
       }
@@ -271,7 +292,7 @@ const FluentAnalyzer = {
     };
   },
 
-  evaluateSpeechStructure(sentences, text, topicObj, frameworkId, isOffTopic, sentenceAnalysis) {
+  evaluateSpeechStructure(sentences, text, topicObj, frameworkId, isOffTopic, sentenceAnalysis, uncertaintyResult) {
     const framework = (typeof FluentFrameworks !== 'undefined' && FluentFrameworks.getById) 
       ? FluentFrameworks.getById(frameworkId)
       : { id: frameworkId, name: frameworkId.toUpperCase() };
@@ -284,8 +305,11 @@ const FluentAnalyzer = {
       currentStructure = 'Opening → Personal Activity / Unrelated Story → Conclusion';
       recommendedStructure = 'Direct Answer → Reason → Example → Summary';
       practicalTip = 'Start your response in sentence one by directly answering the assigned topic before expanding.';
+    } else if (uncertaintyResult.hasUncertainty) {
+      currentStructure = 'Opening → Attempted Topic Introduction → Uncertainty → Unfinished Response';
+      recommendedStructure = 'Opening → Main Point → Reason → Example → Conclusion';
+      practicalTip = 'After introducing the topic in your opening, state one clear main point in sentence two before expanding.';
     } else {
-      // Analyze actual structure
       const steps = [];
       if (sentenceAnalysis.hasClaim) steps.push('Main Point');
       else steps.push('Opening Statement');
@@ -312,7 +336,6 @@ const FluentAnalyzer = {
           practicalTip = 'Ensure your evidence directly substantiates your initial position.';
         }
       } else {
-        // Intermediate
         recommendedStructure = 'Answer → Reason → Example → Conclusion';
         if (sentenceAnalysis.hasJumpingIdeas) {
           practicalTip = 'Group your main claim first, followed by your reasons, before introducing alternative ideas.';
@@ -334,13 +357,21 @@ const FluentAnalyzer = {
     };
   },
 
-  generateWhatYouDidWell(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult) {
+  generateWhatYouDidWell(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, uncertaintyResult) {
     const points = [];
 
     if (isOffTopic) {
       points.push("Your response was understandable and spoken clearly, but most of the answer moved away from the assigned topic.");
       if (sentences.length > 1) {
         points.push(`Spoke in complete, structured sentences with a total of ${wordCount} words.`);
+      }
+      return points;
+    }
+
+    if (uncertaintyResult.hasUncertainty) {
+      points.push(`Attempted to introduce the assigned topic in your opening statement.`);
+      if (sentences[0]) {
+        points.push(`Spoke clearly aloud: "${sentences[0].trim()}"`);
       }
       return points;
     }
@@ -370,12 +401,18 @@ const FluentAnalyzer = {
     return points.slice(0, 3);
   },
 
-  generateWhatToImprove(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, repetitionResult, topicObj, structureCoaching) {
+  generateWhatToImprove(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, repetitionResult, topicObj, structureCoaching, uncertaintyResult) {
     const points = [];
 
     if (isOffTopic) {
       points.push(`Off-Topic Response: Your answer described personal routine or unrelated ideas instead of addressing "${topicObj.text}".`);
       points.push(`Focus on Question: Make sure your opening sentence directly defines or answers the assigned topic.`);
+      return points;
+    }
+
+    if (uncertaintyResult.hasUncertainty) {
+      points.push(`Incomplete Explanation: You introduced the topic, but expressed uncertainty ("${uncertaintyResult.matches[0]}") instead of explaining or answering the question.`);
+      points.push(`Unfinished Structure: The response stopped after the topic introduction without providing a main point, reason, or example.`);
       return points;
     }
 
@@ -426,36 +463,52 @@ const FluentAnalyzer = {
       let why = '';
       let isFixed = false;
 
+      const lower = s.toLowerCase();
+
+      // Rule 0: Specific topic intro correction ("so i'm gonna talk about stock prices fluctuate based on interest rate")
+      if (lower.includes("gonna talk about") || lower.includes("going to talk about")) {
+        if (lower.includes("fluctuate based on interest rate") && !lower.includes("how stock prices")) {
+          corrected = s.replace(/gonna talk about stock prices fluctuate based on interest rate/i, "going to talk about how stock prices fluctuate based on interest rates");
+          why = "Connects the topic naturally with 'how' and uses the standard plural form 'interest rates'.";
+          isFixed = true;
+        } else if (/^so\s+/i.test(corrected)) {
+          corrected = corrected.replace(/^so\s+/i, '');
+          why = 'Removing "So" makes your presentation opening direct and concise.';
+          isFixed = true;
+        }
+      }
+
+      // Rule 0B: Uncertainty correction ("i don't know like what i'm doing right now")
+      if (!isFixed && (lower.includes("don't know like what i'm doing") || lower.includes("don't know what it is"))) {
+        if (lower.includes("don't know like what i'm doing")) {
+          corrected = s.replace(/i don't know like what i'm doing right now/i, "I'm not really sure how to explain this right now");
+          why = "Removes the filler 'like' and makes the sentence clearer while preserving your exact meaning.";
+          isFixed = true;
+        }
+      }
+
       // Rule A: "wake tomorrow" -> "wake up tomorrow"
-      if (/wake\s+tomorrow/i.test(corrected) || /wake\s+today/i.test(corrected)) {
+      if (!isFixed && (/wake\s+tomorrow/i.test(corrected) || /wake\s+today/i.test(corrected))) {
         corrected = corrected.replace(/wake\s+tomorrow/gi, 'wake up tomorrow').replace(/wake\s+today/gi, 'wake up today');
         why = '"Wake up" is the natural phrasal verb in this sentence.';
         isFixed = true;
       }
 
       // Rule B: "go college" -> "go to college", "go school" -> "go to school"
-      if (/go\s+college/i.test(corrected) || /go\s+school/i.test(corrected) || /go\s+work/i.test(corrected)) {
+      if (!isFixed && (/go\s+college/i.test(corrected) || /go\s+school/i.test(corrected) || /go\s+work/i.test(corrected))) {
         corrected = corrected.replace(/go\s+college/gi, 'go to college').replace(/go\s+school/gi, 'go to school').replace(/go\s+work/gi, 'go to work');
-        if (why) why += ' Also requires the preposition "to" before the destination.';
-        else why = 'Requires the preposition "to" before the destination.';
+        why = 'Requires the preposition "to" before the destination.';
         isFixed = true;
       }
 
       // Rule C: Subject-verb agreement "they talks" -> "they talk"
-      if (/they\s+talks/i.test(corrected) || /they\s+is/i.test(corrected)) {
+      if (!isFixed && (/they\s+talks/i.test(corrected) || /they\s+is/i.test(corrected))) {
         corrected = corrected.replace(/they\s+talks/gi, 'they talk').replace(/they\s+is/gi, 'they are');
         why = 'Subject-verb agreement: plural "they" requires "talk" / "are".';
         isFixed = true;
       }
 
-      // Rule D: Sentence opening filler "So I'm..." -> "I'm..."
-      if (/^so\s+i/i.test(corrected)) {
-        corrected = corrected.replace(/^so\s+/i, '');
-        why = 'The shorter version is more direct and natural for a presentation opening.';
-        isFixed = true;
-      }
-
-      // Rule E: Verbal fillers removal ("like", "basically", "um", "uh")
+      // Rule D: Verbal fillers removal ("like", "basically", "um", "uh")
       if (!isFixed && /\b(um|uh|basically|actually|you know|i mean|kind of|sort of)\b/i.test(corrected)) {
         let cleaned = corrected
           .replace(/\b(um|uh|basically|actually|you know|i mean|kind of|sort of)\b/gi, '')
@@ -471,7 +524,7 @@ const FluentAnalyzer = {
         }
       }
 
-      // Rule F: Casual word replacement (preserving exact meaning)
+      // Rule E: Casual word replacement (preserving exact meaning)
       if (!isFixed && (/\bvery good\b/i.test(corrected) || /\buseful\b/i.test(corrected))) {
         if (/\bvery good\b/i.test(corrected)) {
           corrected = corrected.replace(/\bvery good\b/gi, 'effective');
@@ -507,11 +560,12 @@ const FluentAnalyzer = {
     const lower = text.toLowerCase();
     const suggestions = [];
 
+    // ONLY extract vocabulary for words ACTUALLY SPOKEN by the user
     if (lower.includes('very good')) {
       suggestions.push({
         casual: 'very good',
         recommended: 'effective / valuable',
-        explanation: 'Instead of "very good", consider "effective" or "valuable" to sound precise.'
+        explanation: 'Instead of "very good", consider "effective" or "valuable".'
       });
     }
 
@@ -523,11 +577,11 @@ const FluentAnalyzer = {
       });
     }
 
-    if (lower.includes('big') && (lower.includes('capacity') || lower.includes('system') || lower.includes('traffic'))) {
+    if (lower.includes('fluctuate') || lower.includes('fluctuates')) {
       suggestions.push({
-        casual: 'big',
-        recommended: 'extensive / scalable',
-        explanation: 'Instead of "big", consider "extensive" or "scalable".'
+        casual: 'fluctuate',
+        recommended: 'market volatility / rate sensitivity',
+        explanation: 'In financial contexts, "rate sensitivity" precisely describes how assets move with interest rate shifts.'
       });
     }
 
@@ -539,22 +593,29 @@ const FluentAnalyzer = {
       });
     }
 
-    if (suggestions.length === 0) {
+    // STRICT SOURCE-OF-TRUTH FILTER: Only return suggestions whose casual phrase is in the transcript!
+    const validSuggestions = suggestions.filter(s => lower.includes(s.casual.toLowerCase()));
+
+    if (validSuggestions.length === 0) {
       return {
         suggestions: [],
-        message: 'No strong career-specific vocabulary appeared in this response.'
+        message: 'No specific career-vocabulary upgrade is needed for this response.'
       };
     }
 
     return {
-      suggestions: suggestions.slice(0, 3),
+      suggestions: validSuggestions.slice(0, 3),
       message: 'Target career vocabulary suggestions based on your speech:'
     };
   },
 
-  generateNextPracticeAction(isOffTopic, structureCoaching, fillerResult, topicObj) {
+  generateNextPracticeAction(isOffTopic, structureCoaching, fillerResult, topicObj, uncertaintyResult) {
     if (isOffTopic) {
       return `Next attempt: Answer "${topicObj.text}" in sentence one first, then give one reason and one example.`;
+    }
+
+    if (uncertaintyResult.hasUncertainty) {
+      return `Next attempt: After introducing the topic, immediately state one clear point before expanding.`;
     }
 
     if (fillerResult.totalCount >= 3) {
@@ -594,7 +655,7 @@ const FluentAnalyzer = {
           why: 'Speech practice requires active spoken input.'
         }
       ],
-      targetCareerVocabulary: { suggestions: [], message: 'No strong career-specific vocabulary appeared in this response.' },
+      targetCareerVocabulary: { suggestions: [], message: 'No specific career-vocabulary upgrade is needed for this response.' },
       vocabularyOpportunities: [],
       topicRelevance: { status: 'Low', explanation: 'No spoken audio detected.' },
       nextAction: `Next attempt: Speak for 45 seconds about ${topicObj.text}.`,

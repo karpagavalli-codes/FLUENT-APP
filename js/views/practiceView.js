@@ -224,14 +224,22 @@ const FluentPracticeView = {
         const result = await FluentRecorder.stopRecording();
         recDot.style.display = 'none';
         
-        // Grab transcript text (from live speech stream or manually typed fallback)
-        let finalTranscript = result.transcript || transcriptBox.innerText || '';
+        // Grab transcript text (from live speech stream or manually typed input)
+        let finalTranscript = (result.transcript || transcriptBox.innerText || '').trim();
         
-        // If transcript is empty, provide default text so speech analysis works cleanly
-        if (!finalTranscript.trim()) {
-          finalTranscript = `${this.currentTopic.text} is an essential concept. Using the ${FluentFrameworks.getById(this.selectedFramework).name}, we understand its core benefits and practical application in real-world software systems.`;
-          transcriptBox.innerText = finalTranscript;
+        // If transcript is empty, show clear notification without generating fake analysis
+        if (!finalTranscript) {
+          alert('Analysis could not be generated because no speech audio was detected. Please record your speech or type your transcript in the box first.');
+          startBtn.style.display = 'inline-flex';
+          pauseBtn.style.display = 'none';
+          stopBtn.style.display = 'none';
+          restartBtn.style.display = 'none';
+          return;
         }
+
+        // Console trace logging for pipeline verification
+        console.log("TOPIC SENT TO ANALYZER:", this.currentTopic.text);
+        console.log("TRANSCRIPT SENT TO ANALYZER:", finalTranscript);
 
         // Run Speech Analysis Engine
         const analysis = FluentAnalyzer.analyzeSpeech(
@@ -240,6 +248,8 @@ const FluentPracticeView = {
           this.selectedFramework,
           result.durationSeconds || 45
         );
+
+        console.log("PARSED ANALYSIS:", analysis);
 
         // Construct session record
         const sessionRecord = {

@@ -1,7 +1,7 @@
 /**
  * FLUENT - Service Worker for PWA Offline Caching & Desktop App Speed
  */
-const CACHE_NAME = 'fluent-v1';
+const CACHE_NAME = 'fluent-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -51,7 +51,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network first for dynamic search/scholar calls, cache first for static app shell
+  // Navigation request fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -59,10 +59,21 @@ self.addEventListener('fetch', (event) => {
       })
     );
   } else {
+    // Network-first strategy: fetch latest from network, update cache, fallback to cache when offline
     event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        return cachedResponse || fetch(event.request);
-      })
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
     );
   }
 });
