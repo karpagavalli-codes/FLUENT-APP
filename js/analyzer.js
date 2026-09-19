@@ -1,6 +1,8 @@
 /**
- * FLUENT - Advanced Speech Analysis Engine
- * Topic-grounded, transcript-specific analysis pipeline for public speaking & technical communication.
+ * FLUENT - Speaking Coach Analyzer Engine
+ * Analyzes what the user ACTUALLY communicated (Topic vs Transcript).
+ * Focuses strictly on Communication, Structure, Grammar, Fillers, and Natural Phrasing.
+ * NEVER generates ideal answers, adds new topic content, or invents arguments.
  */
 const FluentAnalyzer = {
   // Common stopwords to exclude from concept matching
@@ -11,97 +13,20 @@ const FluentAnalyzer = {
     'it', 'its', 'they', 'them', 'their', 'your', 'my', 'our', 'we', 'you', 'he', 'she', 'his', 'her', 'can', 'will'
   ]),
 
-  // Domain knowledge map for topics & categories
-  DOMAINS: {
-    'AI & Machine Learning': {
-      concepts: ['model', 'data', 'training', 'neural network', 'inference', 'transformer', 'automation', 'weights', 'accuracy', 'latency', 'dataset', 'algorithm', 'parameter'],
-      vocabMap: [
-        { casual: ['big model', 'large model', 'ai system'], replacement: 'large language model (LLM)', def: 'Deep learning models with billions of parameters designed for complex tasks.' },
-        { casual: ['learns from data', 'trains on data'], replacement: 'pattern recognition / supervised learning', def: 'The algorithmic process of optimizing parameters against dataset features.' },
-        { casual: ['fast response', 'quick answer'], replacement: 'low-latency inference', def: 'Executing model predictions rapidly upon receiving input requests.' },
-        { casual: ['works good', 'is accurate'], replacement: 'high precision / generalization', def: 'The ability of a model to perform accurately on unseen real-world data.' }
-      ]
-    },
-    'Technology': {
-      concepts: ['api', 'server', 'client', 'database', 'latency', 'cloud', 'microservices', 'container', 'execution', 'protocol', 'network', 'request', 'response', 'scaling'],
-      vocabMap: [
-        { casual: ['handle many users', 'grow big', 'handle load'], replacement: 'scalable / horizontal scaling', def: 'Expanding system capability by adding more instances or nodes seamlessly.' },
-        { casual: ['talks to other app', 'connect systems'], replacement: 'API contract / protocol integration', def: 'Interface defining standard rules and data structures for inter-system communication.' },
-        { casual: ['fast speed', 'quick loading'], replacement: 'low latency / high throughput', def: 'Minimizing round-trip delay and maximizing processed requests per second.' },
-        { casual: ['easy to change', 'simple layout'], replacement: 'modular architecture', def: 'Designing system components independently so changes do not cascade.' }
-      ]
-    },
-    'Software Engineering': {
-      concepts: ['code', 'testing', 'refactoring', 'design pattern', 'maintainability', 'abstraction', 'git', 'deployment', 'ci/cd', 'monolith', 'decoupling', 'architecture'],
-      vocabMap: [
-        { casual: ['easy to fix', 'easy to edit'], replacement: 'maintainable / maintainability', def: 'Software designed for clean, low-risk future modifications and bug fixes.' },
-        { casual: ['hide details', 'simple view'], replacement: 'abstraction', def: 'Exposing essential interface methods while suppressing underlying complexity.' },
-        { casual: ['test code', 'check bugs'], replacement: 'automated regression testing', def: 'Executing test suites continuously to verify existing behavior remains intact.' },
-        { casual: ['change code', 'clean code'], replacement: 'refactor / refactoring', def: 'Restructuring existing computer code without changing its external behavior.' }
-      ]
-    },
-    'Startups': {
-      concepts: ['product-market fit', 'acquisition', 'churn', 'bootstrapping', 'venture capital', 'roi', 'metrics', 'value proposition', 'retention', 'traction', 'mvp'],
-      vocabMap: [
-        { casual: ['get customers', 'find users'], replacement: 'user acquisition / CAC', def: 'The strategic process of bringing new users into your product funnel.' },
-        { casual: ['users leaving', 'losing users'], replacement: 'customer churn', def: 'The percentage of customers that stop using your product over a given period.' },
-        { casual: ['making money', 'profit margin'], replacement: 'unit economics / ROI', def: 'Direct revenues and costs associated with a business model measured per unit.' },
-        { casual: ['starting company', 'self funded'], replacement: 'bootstrapping', def: 'Building a business with personal capital and operating cash flows without external investment.' }
-      ]
-    },
-    'Business': {
-      concepts: ['negotiation', 'stakeholder', 'efficiency', 'culture', 'roi', 'benchmarking', 'strategy', 'alignment', 'operations', 'revenue', 'leadership'],
-      vocabMap: [
-        { casual: ['talk to people', 'different teams'], replacement: 'cross-functional stakeholder management', def: 'Aligning goals across engineering, product, and business departments.' },
-        { casual: ['work faster', 'do things better'], replacement: 'operational efficiency', def: 'Maximizing output value while minimizing waste, time, and redundant efforts.' },
-        { casual: ['same direction', 'agree together'], replacement: 'strategic alignment', def: 'Ensuring all teams work toward identical overarching corporate objectives.' }
-      ]
-    },
-    'Finance': {
-      concepts: ['valuation', 'cash flow', 'interest', 'liquidity', 'assets', 'diversification', 'leverage', 'yield', 'portfolio', 'capital'],
-      vocabMap: [
-        { casual: ['money coming in', 'cash in hand'], replacement: 'cash flow / liquidity', def: 'The net amount of cash being transferred into and out of a business.' },
-        { casual: ['spreading money', 'different stocks'], replacement: 'portfolio diversification', def: 'Allocating investments across varied assets to reduce exposure to any single risk.' },
-        { casual: ['worth of company', 'value of business'], replacement: 'market valuation', def: 'The total calculated economic worth of a company or asset.' }
-      ]
-    },
-    'Psychology': {
-      concepts: ['behavior', 'cognitive', 'mindset', 'habit', 'focus', 'emotion', 'bias', 'dissonance', 'perception', 'motivation'],
-      vocabMap: [
-        { casual: ['thinking pattern', 'mind state'], replacement: 'cognitive framework / mindset', def: 'The underlying set of assumptions and mental habits that shape perception.' },
-        { casual: ['control emotions', 'understand feelings'], replacement: 'emotional intelligence (EQ)', def: 'The capability to recognize, understand, and manage your own and others emotions.' },
-        { casual: ['doing repeatedly', 'automatic action'], replacement: 'habit loop / automaticity', def: 'A psychological cue, routine, and reward cycle that forms ingrained behavior.' }
-      ]
-    },
-    'Science': {
-      concepts: ['hypothesis', 'thermodynamics', 'quantum', 'entropy', 'empirical', 'variable', 'systemic', 'conservation', 'experiment', 'energy'],
-      vocabMap: [
-        { casual: ['testing ideas', 'proving stuff'], replacement: 'empirical validation', def: 'Verifying a theory through direct observation, experiment, and data collection.' },
-        { casual: ['randomness', 'disorder'], replacement: 'entropy', def: 'A measure of fundamental disorder or randomness within a closed physical system.' }
-      ]
-    },
-    'Communication': {
-      concepts: ['clarity', 'audience', 'engagement', 'perspective', 'structured', 'concise', 'persuasion', 'active listening', 'articulate'],
-      vocabMap: [
-        { casual: ['explain clearly', 'say it well'], replacement: 'articulate / precision', def: 'Expressing an idea fluently and coherently with exact words.' },
-        { casual: ['talk to audience', 'people listening'], replacement: 'audience-centric narrative', def: 'Tailoring message structure to match the listener background and needs.' }
-      ]
-    },
-    'Career': {
-      concepts: ['mentorship', 'networking', 'personal branding', 'resilience', 'specialization', 'generalist', 'growth', 'skillset'],
-      vocabMap: [
-        { casual: ['knowing many things', 'broad skills'], replacement: 'T-shaped generalist', def: 'Possessing deep discipline expertise combined with broad cross-domain adaptability.' },
-        { casual: ['keep going', 'handling failure'], replacement: 'career resilience', def: 'The ability to adapt quickly to workplace changes, setbacks, and shifting demands.' }
-      ]
-    },
-    'General Knowledge': {
-      concepts: ['critical thinking', 'heuristics', 'systems thinking', 'trade-offs', 'evidence', 'rationale', 'socratic', 'logic'],
-      vocabMap: [
-        { casual: ['thinking deeply', 'smart thinking'], replacement: 'critical analysis', def: 'Evaluating facts objectively to form a judgment free from cognitive bias.' },
-        { casual: ['shortcut', 'quick rule'], replacement: 'heuristic', def: 'A practical problem-solving approach or mental shortcut for rapid decision making.' }
-      ]
-    }
+  // Common acronym expansion map for topic matching
+  ACRONYMS: {
+    'ai': ['artificial intelligence', 'ai', 'model', 'data', 'algorithm'],
+    'ml': ['machine learning', 'ml', 'data', 'model'],
+    'api': ['application programming interface', 'api', 'endpoint', 'service'],
+    'ci/cd': ['continuous integration', 'continuous deployment', 'ci', 'cd', 'deployment'],
+    'vc': ['venture capital', 'vc', 'capital', 'investor', 'bootstrapping']
   },
+
+  // Personal day / off-topic indicators
+  OFF_TOPIC_PATTERNS: [
+    'went to', 'met my', 'attended class', 'came home', 'woke up', 'had lunch', 'had dinner', 
+    'watched a movie', 'played games', 'slept at', 'my friends', 'college yesterday', 'my day'
+  ],
 
   analyzeSpeech(transcript, topicObj, frameworkId = 'prep', durationSeconds = 45) {
     if (!transcript || transcript.trim().length === 0) {
@@ -120,113 +45,45 @@ const FluentAnalyzer = {
     const rawSentences = text.match(/[^.!?]+[.!?]*/g) || [text];
     const sentences = rawSentences.map(s => s.trim()).filter(s => s.length > 0);
 
-    // 3. Domain & Topic understanding (filtering out generic question stopwords)
-    const category = topicObj.category || 'General Knowledge';
-    const domainData = this.DOMAINS[category] || this.DOMAINS['General Knowledge'];
-    const topicTextLower = (topicObj.text || '').toLowerCase();
-    
-    // Extract non-stopword keywords from topic title
-    const topicKeywords = topicTextLower.replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !this.STOPWORDS.has(w));
-    const expectedConcepts = Array.from(new Set([...topicKeywords, ...domainData.concepts]));
+    // 3. Off-Topic & Topic Relevance Detection
+    const topicRelevance = this.evaluateTopicRelevance(text, topicObj);
+    const isOffTopic = topicRelevance.status.includes('Off-Topic');
 
-    // Find concepts mentioned in transcript
-    const lowerText = text.toLowerCase();
-    const foundConcepts = expectedConcepts.filter(concept => {
-      const reg = new RegExp(`\\b${concept}\\b`, 'i');
-      return reg.test(lowerText);
-    });
-
-    const missingConcepts = expectedConcepts.filter(concept => !foundConcepts.includes(concept) && !this.STOPWORDS.has(concept)).slice(0, 3);
-
-    // 4. Context-Aware Filler Word Analysis
+    // 4. Context-Aware Filler Analysis
     const fillerResult = this.detectFillersContextual(text);
-    
+
     // 5. Repetition Analysis
-    const repetitionResult = this.detectRepetition(words, lowerText);
+    const repetitionResult = this.detectRepetition(words);
 
-    // 6. Sentence Classification & Quotes
-    const sentenceAnalysis = this.analyzeSentences(sentences, topicObj);
+    // 6. Sentence Analysis (Claims, Reasons, Examples, Grammar, Vague words)
+    const sentenceAnalysis = this.analyzeSentences(sentences);
 
-    // 7. Framework Evaluation
-    const framework = (typeof FluentFrameworks !== 'undefined' && FluentFrameworks.getById) 
-      ? FluentFrameworks.getById(frameworkId)
-      : { id: frameworkId, name: frameworkId.toUpperCase(), steps: [{ label: 'Point' }, { label: 'Reason' }, { label: 'Example' }, { label: 'Point' }] };
-    
-    const structureResult = this.evaluateFrameworkStructure(sentences, lowerText, framework, topicObj.difficulty);
+    // 7. Structure Evaluation (Current vs Recommended vs Practical Tip)
+    const structureCoaching = this.evaluateSpeechStructure(sentences, text, topicObj, frameworkId, isOffTopic, sentenceAnalysis);
 
-    // 8. Generate 2 to 4 "You Said → Try Saying → Why" Alternatives from REAL sentences
-    const alternatives = this.generateSentenceAlternatives(sentences, topicObj, domainData, fillerResult);
+    // 8. Grounded Feedback (What You Did Well & What To Improve)
+    const whatYouDidWell = this.generateWhatYouDidWell(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult);
+    const whatToImprove = this.generateWhatToImprove(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, repetitionResult, topicObj, structureCoaching);
 
-    // 9. Vocabulary Upgrades based on actual transcript
-    const vocabUpgrades = this.generateVocabularyUpgrades(lowerText, domainData, topicObj);
+    // 9. Better Way To Say It (Strictly user's actual sentences, preserving meaning)
+    const betterWayToSayIt = this.generateBetterWayToSayItList(sentences, fillerResult);
 
-    // 10. Strengths & Improvements (Grounded in transcript)
-    const strengths = this.generateGroundedStrengths(sentences, sentenceAnalysis, foundConcepts, framework, structureResult, wordCount);
-    const improvements = this.generateGroundedImprovements(topicObj, missingConcepts, structureResult, fillerResult, sentenceAnalysis, wordCount);
+    // 10. Target Career Vocabulary Connection (Only from user speech, max 3)
+    const vocabResult = this.generateVocabularyConnection(text, topicObj);
 
-    // 11. Framework Recommendation & One Next Action
-    const frameworkRec = this.determineFrameworkRecommendation(frameworkId, structureResult, topicObj);
-    const nextAction = this.generateOneNextAction(topicObj, missingConcepts, frameworkRec, fillerResult);
+    // 11. Next Practice Action
+    const nextAction = this.generateNextPracticeAction(isOffTopic, structureCoaching, fillerResult, topicObj);
 
-    // 12. Quick Summary
-    const summary = this.generateExecutiveSummary(topicObj, foundConcepts, missingConcepts, structureResult, fillerResult);
-
-    // 13. Overall Score Calculation
-    let score = 78;
-    if (foundConcepts.length > 0) score += Math.min(foundConcepts.length * 3, 12);
-    if (structureResult.matchedSteps.length >= 2) score += 6;
-    if (sentenceAnalysis.hasReason) score += 4;
-    if (sentenceAnalysis.hasExample) score += 4;
-    if (fillerResult.totalCount === 0) score += 4;
-    else score -= Math.min(fillerResult.totalCount * 2, 10);
-    if (wpm >= 120 && wpm <= 160) score += 4;
-    if (wordCount < 20) score -= 12;
-    score = Math.max(60, Math.min(98, score));
-
-    // Internal Schema (Section 20 requirement)
-    const schema = {
-      topic_understanding: {
-        topicText: topicObj.text,
-        category: topicObj.category,
-        difficulty: topicObj.difficulty,
-        expectedConcepts,
-        foundConcepts,
-        missingConcepts
-      },
-      response_summary: {
-        summary,
-        wordCount,
-        wpm,
-        durationSeconds
-      },
-      content: {
-        explained: foundConcepts,
-        missing: missingConcepts,
-        clarificationNeeded: sentenceAnalysis.vagueSentences.map(s => s.text)
-      },
-      structure: {
-        frameworkName: framework.name,
-        matchedSteps: structureResult.matchedSteps,
-        missingSteps: structureResult.missingSteps,
-        flowAnalysis: structureResult.flowAnalysis
-      },
-      language: {
-        vaguePhrases: sentenceAnalysis.vaguePhrases
-      },
-      filler_words: {
-        totalCount: fillerResult.totalCount,
-        breakdown: fillerResult.breakdown
-      },
-      repetition: {
-        repeatedWords: repetitionResult.repeatedWords
-      },
-      vocabulary: {
-        upgrades: vocabUpgrades
-      },
-      framework: frameworkRec,
-      alternatives: alternatives,
-      next_action: nextAction
-    };
+    // 12. Score Calculation
+    let score = 80;
+    if (isOffTopic) score -= 25;
+    if (sentenceAnalysis.hasReason) score += 5;
+    if (sentenceAnalysis.hasExample) score += 5;
+    if (fillerResult.totalCount === 0) score += 5;
+    else score -= Math.min(fillerResult.totalCount * 3, 15);
+    if (repetitionResult.repeatedWords.length > 0) score -= 5;
+    if (wordCount < 15) score -= 15;
+    score = Math.max(50, Math.min(98, score));
 
     return {
       score,
@@ -234,29 +91,63 @@ const FluentAnalyzer = {
       wpm,
       fillerWordsCount: fillerResult.totalCount,
       fillerBreakdown: fillerResult.breakdown,
-      frameworkName: framework.name,
-      structureFound: structureResult.matchedSteps,
-      summary,
-      strengths: strengths.slice(0, 4),
-      improvements: improvements.slice(0, 4),
-      contentAnalysis: {
-        explained: foundConcepts,
-        missing: missingConcepts,
-        clarificationNeeded: sentenceAnalysis.clarificationNotes
-      },
-      structureAnalysis: structureResult,
-      betterWayToSayIt: alternatives[0] || null, // Backward compatibility
-      alternatives: alternatives.slice(0, 4),
-      vocabularyOpportunities: vocabUpgrades,
-      speakingHabits: {
-        fillersCount: fillerResult.totalCount,
-        fillerBreakdown: fillerResult.breakdown,
-        repetition: repetitionResult,
-        wpmStatus: wpm > 170 ? 'Fast' : wpm < 105 ? 'Deliberate' : 'Optimal'
-      },
-      frameworkRecommendation: frameworkRec,
+      frameworkName: structureCoaching.frameworkName,
+      whatYouDidWell,
+      whatToImprove,
+      speechStructure: structureCoaching,
+      betterWayToSayIt, // Array of 1-4 items { original, improved, why }
+      alternatives: betterWayToSayIt, // For backward compatibility
+      targetCareerVocabulary: vocabResult, // { suggestions: [], message: string }
+      vocabularyOpportunities: vocabResult.suggestions.map(s => ({ casual: s.casual, recommended: s.recommended, def: s.explanation })), // Backward compatibility
+      topicRelevance,
       nextAction,
-      schema
+      summary: topicRelevance.explanation
+    };
+  },
+
+  evaluateTopicRelevance(text, topicObj) {
+    const lowerText = text.toLowerCase();
+    const topicTextLower = (topicObj.text || '').toLowerCase();
+    const categoryLower = (topicObj.category || '').toLowerCase();
+
+    // Check off-topic patterns (e.g. daily routine narrative)
+    let offTopicMatches = 0;
+    this.OFF_TOPIC_PATTERNS.forEach(p => {
+      if (lowerText.includes(p)) offTopicMatches++;
+    });
+
+    if (offTopicMatches >= 2) {
+      return {
+        status: 'Low / Off-Topic',
+        explanation: `Your response moved away from the assigned topic "${topicObj.text}". The speech primarily discusses personal activities or unrelated topics rather than answering the prompt.`
+      };
+    }
+
+    // Extract core keywords from topic title
+    const topicKeywords = topicTextLower.replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !this.STOPWORDS.has(w));
+    
+    // Add acronym expansions
+    let expandedKeywords = [...topicKeywords];
+    topicKeywords.forEach(k => {
+      if (this.ACRONYMS[k]) {
+        expandedKeywords = expandedKeywords.concat(this.ACRONYMS[k]);
+      }
+    });
+
+    // Check keyword overlap
+    const matchedKeywords = expandedKeywords.filter(k => lowerText.includes(k));
+    const hasCategoryMatch = categoryLower.length > 2 && lowerText.includes(categoryLower);
+
+    if (matchedKeywords.length > 0 || hasCategoryMatch) {
+      return {
+        status: 'High',
+        explanation: `Your response directly addressed "${topicObj.text}" using relevant topic references.`
+      };
+    }
+
+    return {
+      status: 'Medium',
+      explanation: `Your response touched upon general aspects of "${topicObj.text}", but could connect more directly to the core question.`
     };
   },
 
@@ -265,7 +156,7 @@ const FluentAnalyzer = {
     let totalCount = 0;
     const breakdown = {};
 
-    // 1. Absolute fillers (always filler)
+    // 1. Absolute fillers
     const absoluteFillers = ['um', 'uh', 'er', 'ah'];
     absoluteFillers.forEach(f => {
       const reg = new RegExp(`\\b${f}\\b`, 'gi');
@@ -283,7 +174,7 @@ const FluentAnalyzer = {
       breakdown['like (filler context)'] = likeFillerMatches.length;
     }
 
-    // 3. Context-dependent "so"
+    // 3. Context-dependent "so" at sentence openings
     const soFillerMatches = lower.match(/(^|[.!?]\s+)so\s+(um|uh|like|basically|actually|,)/g);
     if (soFillerMatches) {
       totalCount += soFillerMatches.length;
@@ -304,9 +195,8 @@ const FluentAnalyzer = {
     return { totalCount, breakdown };
   },
 
-  detectRepetition(words, lowerText) {
+  detectRepetition(words) {
     const counts = {};
-
     words.forEach(w => {
       const clean = w.toLowerCase().replace(/[^\w]/g, '');
       if (clean.length > 3 && !this.STOPWORDS.has(clean)) {
@@ -316,7 +206,7 @@ const FluentAnalyzer = {
 
     const repeatedWords = [];
     Object.keys(counts).forEach(w => {
-      if (counts[w] >= 4) {
+      if (counts[w] >= 3) {
         repeatedWords.push({ word: w, count: counts[w] });
       }
     });
@@ -324,66 +214,49 @@ const FluentAnalyzer = {
     return { repeatedWords };
   },
 
-  analyzeSentences(sentences, topicObj) {
+  analyzeSentences(sentences) {
     let hasClaim = false;
     let hasReason = false;
     let hasExample = false;
     let hasCounter = false;
     let hasConclusion = false;
-    
+    let hasJumpingIdeas = false;
+
     let claimQuote = '';
     let reasonQuote = '';
     let exampleQuote = '';
 
-    const vagueSentences = [];
-    const vaguePhrases = [];
-    const clarificationNotes = [];
-
-    const vagueKeywords = ['many things', 'good stuff', 'very useful', 'big system', 'do stuff', 'lots of', 'nice way', 'make it work', 'things like that'];
-
-    sentences.forEach(s => {
+    sentences.forEach((s, idx) => {
       const lower = s.toLowerCase();
-      
-      // Check claim
-      if (!hasClaim && (lower.includes('is a') || lower.includes('defined as') || lower.includes('refers to') || lower.includes('means') || lower.includes('allows') || lower.includes('believe') || lower.includes('in my view'))) {
+
+      if (!hasClaim && (lower.includes('is a') || lower.includes('defined as') || lower.includes('refers to') || lower.includes('means') || lower.includes('allows') || lower.includes('believe') || lower.includes('in my view') || lower.includes('i think') || lower.includes('we should'))) {
         hasClaim = true;
         claimQuote = s;
       }
-      
-      // Check reason
+
       if (!hasReason && (lower.includes('because') || lower.includes('since') || lower.includes('due to') || lower.includes('the reason') || lower.includes('this allows') || lower.includes('which leads to'))) {
         hasReason = true;
         reasonQuote = s;
       }
 
-      // Check example
       if (!hasExample && (lower.includes('for example') || lower.includes('such as') || lower.includes('for instance') || lower.includes('like when') || lower.includes('in practice') || lower.includes('scenario'))) {
         hasExample = true;
         exampleQuote = s;
       }
 
-      // Check counterpoint
-      if (!hasCounter && (lower.includes('however') || lower.includes('although') || lower.includes('on the other hand') || lower.includes('despite') || lower.includes('trade-off'))) {
+      if (!hasCounter && (lower.includes('however') || lower.includes('although') || lower.includes('on the other hand') || lower.includes('despite') || lower.includes('trade-off') || (lower.startsWith('but ') && idx > 0))) {
         hasCounter = true;
       }
 
-      // Check conclusion
-      if (!hasConclusion && (lower.includes('in conclusion') || lower.includes('overall') || lower.includes('therefore') || lower.includes('to summarize') || lower.includes('ultimately'))) {
+      if (!hasConclusion && (lower.includes('in conclusion') || lower.includes('overall') || lower.includes('therefore') || lower.includes('to summarize') || lower.includes('ultimately') || lower.includes('in summary'))) {
         hasConclusion = true;
       }
 
-      // Check vague phrasing
-      vagueKeywords.forEach(vk => {
-        if (lower.includes(vk)) {
-          vaguePhrases.push(vk);
-          vagueSentences.push({ text: s, vagueWord: vk });
-        }
-      });
+      // Check jumping ideas (e.g. sentence starting with "But..." then next starting with "Also...")
+      if (idx > 0 && (lower.startsWith('but ') || lower.startsWith('also ') || lower.startsWith('and ')) && !hasReason) {
+        hasJumpingIdeas = true;
+      }
     });
-
-    if (vagueSentences.length > 0) {
-      clarificationNotes.push(`Your statement "${vagueSentences[0].text}" could be strengthened by replacing vague terms like "${vagueSentences[0].vagueWord}" with specific domain mechanisms.`);
-    }
 
     return {
       hasClaim,
@@ -391,288 +264,304 @@ const FluentAnalyzer = {
       hasExample,
       hasCounter,
       hasConclusion,
+      hasJumpingIdeas,
       claimQuote,
       reasonQuote,
-      exampleQuote,
-      vagueSentences,
-      vaguePhrases,
-      clarificationNotes
+      exampleQuote
     };
   },
 
-  evaluateFrameworkStructure(sentences, lowerText, framework, difficulty) {
-    const matchedSteps = [];
-    const missingSteps = [];
+  evaluateSpeechStructure(sentences, text, topicObj, frameworkId, isOffTopic, sentenceAnalysis) {
+    const framework = (typeof FluentFrameworks !== 'undefined' && FluentFrameworks.getById) 
+      ? FluentFrameworks.getById(frameworkId)
+      : { id: frameworkId, name: frameworkId.toUpperCase() };
 
-    framework.steps.forEach(step => {
-      const label = step.label.toLowerCase();
-      let found = false;
+    let currentStructure = '';
+    let recommendedStructure = '';
+    let practicalTip = '';
 
-      if (label.includes('point') || label.includes('claim') || label.includes('situation')) {
-        found = lowerText.includes('believe') || lowerText.includes('is a') || lowerText.includes('think') || lowerText.includes('main') || lowerText.includes('refers') || lowerText.includes('allows');
-      } else if (label.includes('reason') || label.includes('cause') || label.includes('evidence')) {
-        found = lowerText.includes('because') || lowerText.includes('reason') || lowerText.includes('due to') || lowerText.includes('since') || lowerText.includes('shows that') || lowerText.includes('benchmark');
-      } else if (label.includes('example') || label.includes('explanation') || label.includes('action') || label.includes('contrast')) {
-        found = lowerText.includes('example') || lowerText.includes('instance') || lowerText.includes('such as') || lowerText.includes('like when') || lowerText.includes('scenario') || lowerText.includes('in practice');
-      } else if (label.includes('result') || label.includes('conclusion') || label.includes('solution')) {
-        found = lowerText.includes('conclusion') || lowerText.includes('therefore') || lowerText.includes('overall') || lowerText.includes('so the solution') || lowerText.includes('recommend');
-      }
+    if (isOffTopic) {
+      currentStructure = 'Opening → Personal Activity / Unrelated Story → Conclusion';
+      recommendedStructure = 'Direct Answer → Reason → Example → Summary';
+      practicalTip = 'Start your response in sentence one by directly answering the assigned topic before expanding.';
+    } else {
+      // Analyze actual structure
+      const steps = [];
+      if (sentenceAnalysis.hasClaim) steps.push('Main Point');
+      else steps.push('Opening Statement');
 
-      if (found) {
-        matchedSteps.push(step.label);
+      if (sentenceAnalysis.hasReason) steps.push('Reason');
+      if (sentenceAnalysis.hasExample) steps.push('Example');
+      if (sentenceAnalysis.hasCounter) steps.push('Counterpoint');
+      if (sentenceAnalysis.hasConclusion) steps.push('Conclusion');
+
+      currentStructure = steps.join(' → ');
+
+      if (topicObj.difficulty === 'EASY') {
+        recommendedStructure = 'Definition / Main Idea → Key Point → Example → Closing';
+        if (!sentenceAnalysis.hasExample) {
+          practicalTip = 'Add a quick concrete example after your main point to make your explanation complete.';
+        } else {
+          practicalTip = 'Keep your opening direct and conclude with a crisp summary sentence.';
+        }
+      } else if (topicObj.difficulty === 'HARD') {
+        recommendedStructure = 'Position → Reason → Evidence / Example → Counterpoint → Conclusion';
+        if (!sentenceAnalysis.hasCounter) {
+          practicalTip = 'For Hard topics, include a trade-off or counterpoint ("however...") to show well-rounded reasoning.';
+        } else {
+          practicalTip = 'Ensure your evidence directly substantiates your initial position.';
+        }
       } else {
-        missingSteps.push(step.label);
+        // Intermediate
+        recommendedStructure = 'Answer → Reason → Example → Conclusion';
+        if (sentenceAnalysis.hasJumpingIdeas) {
+          practicalTip = 'Group your main claim first, followed by your reasons, before introducing alternative ideas.';
+        } else if (!sentenceAnalysis.hasReason) {
+          practicalTip = 'Explain why your point matters using a causal connector ("because...") right after your opening.';
+        } else if (!sentenceAnalysis.hasExample) {
+          practicalTip = 'Follow your reason with a real-world example ("for example...") to solidify your point.';
+        } else {
+          practicalTip = 'Group your ideas logically: Answer first, followed by Reason, Example, and Conclusion.';
+        }
       }
-    });
-
-    let flowAnalysis = matchedSteps.length >= 3 
-      ? `Strong logical structure. You successfully covered ${matchedSteps.join(' → ')}.`
-      : `Structure missing key elements. You included ${matchedSteps.join(', ') || 'initial points'}, but missed ${missingSteps.join(', ')}.`;
-
-    if (difficulty === 'HARD' && !lowerText.includes('however') && !lowerText.includes('trade-off')) {
-      flowAnalysis += ` For HARD level topics, including a trade-off or counterpoint ("however...") significantly elevates your argument quality.`;
     }
 
-    return { matchedSteps, missingSteps, flowAnalysis };
+    return {
+      frameworkName: framework.name,
+      currentStructure,
+      recommendedStructure,
+      practicalTip
+    };
   },
 
-  generateSentenceAlternatives(sentences, topicObj, domainData, fillerResult) {
-    const alternatives = [];
-    const usedIndices = new Set();
+  generateWhatYouDidWell(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult) {
+    const points = [];
 
-    // 1. Look for sentence with vague phrasing
-    for (let i = 0; i < sentences.length; i++) {
-      const s = sentences[i];
-      const lower = s.toLowerCase();
-      if (lower.includes('many things') || lower.includes('useful') || lower.includes('good') || lower.includes('stuff') || lower.includes('handle more') || lower.includes('do things')) {
-        usedIndices.add(i);
-
-        let improved = s;
-        let reason = '';
-
-        if (lower.includes('useful') || lower.includes('many things')) {
-          improved = `The core benefit of ${topicObj.text} is that it streamlines technical operations, automates routine tasks, and enhances system reliability.`;
-          reason = `Replaces generic descriptors ('useful', 'many things') with specific operational outcomes (streamlines operations, automates tasks, enhances reliability).`;
-        } else if (lower.includes('handle more') || lower.includes('handle many')) {
-          improved = `The system architecture must be designed for horizontal scalability to handle growing user traffic without performance degradation.`;
-          reason = `Upgrades casual phrasing ('handle more users') to precise engineering concepts ('horizontal scalability').`;
-        } else {
-          improved = `${topicObj.text} provides a clear structural framework that reduces operational complexity and improves efficiency.`;
-          reason = `Provides precise technical vocabulary instead of vague generalities.`;
-        }
-
-        alternatives.push({ original: s, improved, reason });
-        break;
+    if (isOffTopic) {
+      points.push("Your response was understandable and spoken clearly, but most of the answer moved away from the assigned topic.");
+      if (sentences.length > 1) {
+        points.push(`Spoke in complete, structured sentences with a total of ${wordCount} words.`);
       }
+      return points;
     }
 
-    // 2. Look for sentence with fillers or repetition
-    for (let i = 0; i < sentences.length; i++) {
-      if (usedIndices.has(i)) continue;
-      const s = sentences[i];
-      const lower = s.toLowerCase();
+    if (sentenceAnalysis.claimQuote) {
+      points.push(`Stated a clear opening point: "${sentenceAnalysis.claimQuote.trim()}"`);
+    } else if (sentences[0]) {
+      points.push(`Opened directly with your initial thought: "${sentences[0].trim()}"`);
+    }
 
-      if (lower.includes('like') || lower.includes('basically') || lower.includes('actually') || lower.includes('um') || lower.includes('uh')) {
-        // Strip filler words cleanly from user's actual sentence
-        let cleaned = s
+    if (sentenceAnalysis.reasonQuote) {
+      points.push(`Supported your position with causal reasoning: "${sentenceAnalysis.reasonQuote.trim()}"`);
+    }
+
+    if (sentenceAnalysis.exampleQuote) {
+      points.push(`Included a concrete example/illustration: "${sentenceAnalysis.exampleQuote.trim()}"`);
+    }
+
+    if (fillerResult.totalCount === 0 && wordCount > 15) {
+      points.push("Spoke cleanly without relying on verbal fillers or stalling phrases.");
+    }
+
+    if (points.length === 0) {
+      points.push(`Maintained a steady speaking rhythm with ${wordCount} words spoken.`);
+    }
+
+    return points.slice(0, 3);
+  },
+
+  generateWhatToImprove(sentences, sentenceAnalysis, isOffTopic, wordCount, fillerResult, repetitionResult, topicObj, structureCoaching) {
+    const points = [];
+
+    if (isOffTopic) {
+      points.push(`Off-Topic Response: Your answer described personal routine or unrelated ideas instead of addressing "${topicObj.text}".`);
+      points.push(`Focus on Question: Make sure your opening sentence directly defines or answers the assigned topic.`);
+      return points;
+    }
+
+    if (sentenceAnalysis.hasJumpingIdeas) {
+      points.push(`Idea Ordering: Your points jumped between contrasting ideas. Group your main claim and reason first before introducing alternative options.`);
+    }
+
+    if (!sentenceAnalysis.hasReason) {
+      points.push(`Incomplete Explanation: You stated a point, but did not explain the underlying reason ("because...") why it is true.`);
+    }
+
+    if (!sentenceAnalysis.hasExample) {
+      points.push(`Missing Example: Follow your explanation with a specific instance or example ("for example...") to make your idea clear.`);
+    }
+
+    if (fillerResult.totalCount >= 3) {
+      const topFillers = Object.keys(fillerResult.breakdown).join(', ');
+      points.push(`Excessive Fillers: Detected ${fillerResult.totalCount} filler words/stalling phrases (${topFillers}). Replace these with silent pauses.`);
+    }
+
+    if (repetitionResult.repeatedWords.length > 0) {
+      const rep = repetitionResult.repeatedWords[0];
+      points.push(`Word Repetition: You repeated the word "${rep.word}" ${rep.count} times. Try pausing or varying your sentence structure.`);
+    }
+
+    if (topicObj.difficulty === 'HARD' && !sentenceAnalysis.hasCounter) {
+      points.push(`Missing Counterpoint: For a Hard level topic, address potential trade-offs or opposing perspectives ("however...").`);
+    }
+
+    if (wordCount < 20) {
+      points.push(`Response Elaboration: Your answer was brief (${wordCount} words). Expand on your reasoning to form a complete response.`);
+    }
+
+    if (points.length === 0) {
+      points.push(`Structure Organization: ${structureCoaching.practicalTip}`);
+    }
+
+    return points.slice(0, 3);
+  },
+
+  generateBetterWayToSayItList(sentences, fillerResult) {
+    const list = [];
+    const usedIndices = new Set();
+
+    sentences.forEach((s, idx) => {
+      if (usedIndices.has(idx)) return;
+      let corrected = s;
+      let why = '';
+      let isFixed = false;
+
+      // Rule A: "wake tomorrow" -> "wake up tomorrow"
+      if (/wake\s+tomorrow/i.test(corrected) || /wake\s+today/i.test(corrected)) {
+        corrected = corrected.replace(/wake\s+tomorrow/gi, 'wake up tomorrow').replace(/wake\s+today/gi, 'wake up today');
+        why = '"Wake up" is the natural phrasal verb in this sentence.';
+        isFixed = true;
+      }
+
+      // Rule B: "go college" -> "go to college", "go school" -> "go to school"
+      if (/go\s+college/i.test(corrected) || /go\s+school/i.test(corrected) || /go\s+work/i.test(corrected)) {
+        corrected = corrected.replace(/go\s+college/gi, 'go to college').replace(/go\s+school/gi, 'go to school').replace(/go\s+work/gi, 'go to work');
+        if (why) why += ' Also requires the preposition "to" before the destination.';
+        else why = 'Requires the preposition "to" before the destination.';
+        isFixed = true;
+      }
+
+      // Rule C: Subject-verb agreement "they talks" -> "they talk"
+      if (/they\s+talks/i.test(corrected) || /they\s+is/i.test(corrected)) {
+        corrected = corrected.replace(/they\s+talks/gi, 'they talk').replace(/they\s+is/gi, 'they are');
+        why = 'Subject-verb agreement: plural "they" requires "talk" / "are".';
+        isFixed = true;
+      }
+
+      // Rule D: Sentence opening filler "So I'm..." -> "I'm..."
+      if (/^so\s+i/i.test(corrected)) {
+        corrected = corrected.replace(/^so\s+/i, '');
+        why = 'The shorter version is more direct and natural for a presentation opening.';
+        isFixed = true;
+      }
+
+      // Rule E: Verbal fillers removal ("like", "basically", "um", "uh")
+      if (!isFixed && /\b(um|uh|basically|actually|you know|i mean|kind of|sort of)\b/i.test(corrected)) {
+        let cleaned = corrected
           .replace(/\b(um|uh|basically|actually|you know|i mean|kind of|sort of)\b/gi, '')
           .replace(/,\s*,/g, ',')
           .replace(/\s+/g, ' ')
           .trim();
 
         if (cleaned.length > 5 && cleaned !== s) {
-          usedIndices.add(i);
           cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-          alternatives.push({
-            original: s,
-            improved: cleaned,
-            reason: `Eliminates verbal fillers ('basically', 'like', 'um') to make your spoken sentence crisp and authoritative while preserving your exact meaning.`
-          });
-          break;
+          corrected = cleaned;
+          why = 'Eliminates verbal fillers to make your spoken sentence direct and clear.';
+          isFixed = true;
         }
       }
-    }
 
-    // 3. Look for sentence lacking causal connector ("because", "since", "so that")
-    for (let i = 0; i < sentences.length; i++) {
-      if (usedIndices.has(i)) continue;
-      const s = sentences[i];
-      const lower = s.toLowerCase();
-
-      if (s.split(/\s+/).length > 6 && !lower.includes('because') && !lower.includes('since') && !lower.includes('due to') && !lower.includes('therefore')) {
-        usedIndices.add(i);
-
-        const improved = `${s.replace(/[.!?]$/, '')}, because this directly impacts system reliability and performance.`;
-        alternatives.push({
-          original: s,
-          improved,
-          reason: `Adds an explicit causal clause ('because...') to explain the underlying technical justification for your statement.`
-        });
-        break;
-      }
-    }
-
-    // Fallback if less than 2 alternatives were generated
-    if (alternatives.length === 0 && sentences.length > 0) {
-      const first = sentences[0];
-      alternatives.push({
-        original: first,
-        improved: `In evaluating ${topicObj.text}, the primary objective is to maintain structural clarity while addressing core requirements.`,
-        reason: `Refines your opening statement to immediately frame the topic with professional clarity.`
-      });
-    }
-
-    return alternatives;
-  },
-
-  generateVocabularyUpgrades(lowerText, domainData, topicObj) {
-    const upgrades = [];
-    const maps = domainData.vocabMap || [];
-
-    maps.forEach(m => {
-      m.casual.forEach(c => {
-        if (lowerText.includes(c) && upgrades.length < 3) {
-          upgrades.push({
-            casual: c,
-            recommended: m.replacement,
-            def: m.def
-          });
+      // Rule F: Casual word replacement (preserving exact meaning)
+      if (!isFixed && (/\bvery good\b/i.test(corrected) || /\buseful\b/i.test(corrected))) {
+        if (/\bvery good\b/i.test(corrected)) {
+          corrected = corrected.replace(/\bvery good\b/gi, 'effective');
+          why = 'Replaces "very good" with "effective" for precise expression.';
+          isFixed = true;
+        } else if (/\buseful\b/i.test(corrected)) {
+          corrected = corrected.replace(/\buseful\b/gi, 'valuable');
+          why = 'Replaces "useful" with "valuable" for stronger word choice.';
+          isFixed = true;
         }
-      });
+      }
+
+      if (isFixed) {
+        usedIndices.add(idx);
+        list.push({ original: s, improved: corrected, why });
+      }
     });
 
-    // Fallback topic-relevant terms if user speech didn't match casual patterns directly
-    if (upgrades.length < 2) {
-      const topConcepts = domainData.concepts.slice(0, 3);
-      topConcepts.forEach(c => {
-        if (!lowerText.includes(c) && upgrades.length < 3) {
-          upgrades.push({
-            casual: `generic description of ${topicObj.text}`,
-            recommended: c,
-            def: `Key domain concept in ${topicObj.category} to elevate technical precision.`
-          });
-        }
+    // If no sentence needed correction, return "This sentence is already clear."
+    if (list.length === 0 && sentences.length > 0) {
+      const s = sentences[0];
+      list.push({
+        original: s,
+        improved: s,
+        why: 'This sentence is already clear.'
       });
     }
 
-    return upgrades;
+    return list.slice(0, 4);
   },
 
-  generateGroundedStrengths(sentences, sentenceAnalysis, foundConcepts, framework, structureResult, wordCount) {
-    const strengths = [];
+  generateVocabularyConnection(text, topicObj) {
+    const lower = text.toLowerCase();
+    const suggestions = [];
 
-    if (sentenceAnalysis.claimQuote) {
-      strengths.push(`Stated a clear core definition/position: "${sentenceAnalysis.claimQuote.trim()}"`);
-    } else if (sentences[0]) {
-      strengths.push(`Directly addressed the topic in your opening statement: "${sentences[0].trim()}"`);
+    if (lower.includes('very good')) {
+      suggestions.push({
+        casual: 'very good',
+        recommended: 'effective / valuable',
+        explanation: 'Instead of "very good", consider "effective" or "valuable" to sound precise.'
+      });
     }
 
-    if (foundConcepts.length > 0) {
-      strengths.push(`Incorporated key domain concepts (${foundConcepts.slice(0, 3).join(', ')}).`);
+    if (lower.includes('useful')) {
+      suggestions.push({
+        casual: 'useful',
+        recommended: 'valuable / versatile',
+        explanation: 'Instead of "useful", consider "valuable" or "versatile".'
+      });
     }
 
-    if (sentenceAnalysis.reasonQuote) {
-      strengths.push(`Supported your point with clear causal reasoning: "${sentenceAnalysis.reasonQuote.trim()}"`);
+    if (lower.includes('big') && (lower.includes('capacity') || lower.includes('system') || lower.includes('traffic'))) {
+      suggestions.push({
+        casual: 'big',
+        recommended: 'extensive / scalable',
+        explanation: 'Instead of "big", consider "extensive" or "scalable".'
+      });
     }
 
-    if (sentenceAnalysis.exampleQuote) {
-      strengths.push(`Provided a concrete illustration/example: "${sentenceAnalysis.exampleQuote.trim()}"`);
+    if (lower.includes('easy to fix') || lower.includes('easy to change')) {
+      suggestions.push({
+        casual: 'easy to change',
+        recommended: 'maintainable',
+        explanation: 'Instead of "easy to change", consider "maintainable".'
+      });
     }
 
-    if (structureResult.matchedSteps.length >= 2) {
-      strengths.push(`Successfully structured your response following ${framework.name} (${structureResult.matchedSteps.join(', ')}).`);
-    }
-
-    if (strengths.length < 2) {
-      strengths.push(`Maintained continuous speaking flow with ${wordCount} total words.`);
-    }
-
-    return strengths;
-  },
-
-  generateGroundedImprovements(topicObj, missingConcepts, structureResult, fillerResult, sentenceAnalysis, wordCount) {
-    const improvements = [];
-
-    if (missingConcepts.length > 0) {
-      improvements.push(`Content Coverage: Your answer would be stronger by explicitly mentioning ${missingConcepts.slice(0, 2).join(' and ')} in relation to ${topicObj.text}.`);
-    }
-
-    if (structureResult.missingSteps.length > 0) {
-      improvements.push(`Structure Gap: Include the missing ${structureResult.missingSteps.join(' and ')} component to complete your ${structureResult.matchedSteps.length > 0 ? 'framework' : 'response structure'}.`);
-    }
-
-    if (fillerResult.totalCount >= 3) {
-      const topFillers = Object.keys(fillerResult.breakdown).join(', ');
-      improvements.push(`Speaking Habits: Detected ${fillerResult.totalCount} filler words/stalling phrases (${topFillers}). Replace these with silent pauses to sound more composed.`);
-    }
-
-    if (sentenceAnalysis.vagueSentences.length > 0) {
-      improvements.push(`Language Precision: Replace vague phrasing in "${sentenceAnalysis.vagueSentences[0].text.trim()}" with concrete technical terms.`);
-    }
-
-    if (wordCount < 30) {
-      improvements.push(`Elaboration: Your response was brief (${wordCount} words). Expand on cause and effect to provide a complete explanation.`);
-    }
-
-    return improvements;
-  },
-
-  determineFrameworkRecommendation(currentFrameworkId, structureResult, topicObj) {
-    if (structureResult.missingSteps.includes('Reason') || structureResult.missingSteps.includes('Example')) {
+    if (suggestions.length === 0) {
       return {
-        id: 'prep',
-        name: 'PREP (Point → Reason → Example → Point)',
-        reason: 'Your response needed stronger evidence and causal links. PREP will help you structure your main point followed immediately by a reason and example.'
-      };
-    }
-
-    if (topicObj.difficulty === 'HARD' || topicObj.category === 'Technology' || topicObj.category === 'Software Engineering') {
-      return {
-        id: 'pcs',
-        name: 'Problem → Cause → Solution',
-        reason: 'This technical topic is well suited for diagnostic structure: identifying the problem, explaining the root cause, and presenting your solution.'
+        suggestions: [],
+        message: 'No strong career-specific vocabulary appeared in this response.'
       };
     }
 
     return {
-      id: 'cer',
-      name: 'CER (Claim → Evidence → Reasoning)',
-      reason: 'Use Claim → Evidence → Reasoning to back your statements with empirical data and analytical proof.'
+      suggestions: suggestions.slice(0, 3),
+      message: 'Target career vocabulary suggestions based on your speech:'
     };
   },
 
-  generateOneNextAction(topicObj, missingConcepts, frameworkRec, fillerResult) {
-    let action = `Next attempt: Speak on "${topicObj.text}" for 60 seconds using the ${frameworkRec.name} framework.`;
-    
-    if (missingConcepts.length > 0) {
-      action += ` Make sure to explicitly incorporate ${missingConcepts[0]}.`;
-    } else if (fillerResult.totalCount > 3) {
-      action += ` Focus on pausing silently whenever you feel tempted to say "${Object.keys(fillerResult.breakdown)[0] || 'um'}".`;
+  generateNextPracticeAction(isOffTopic, structureCoaching, fillerResult, topicObj) {
+    if (isOffTopic) {
+      return `Next attempt: Answer "${topicObj.text}" in sentence one first, then give one reason and one example.`;
     }
 
-    return action;
-  },
-
-  generateExecutiveSummary(topicObj, foundConcepts, missingConcepts, structureResult, fillerResult) {
-    let summary = `You addressed "${topicObj.text}" `;
-    
-    if (foundConcepts.length > 0) {
-      summary += `with good awareness of ${foundConcepts.slice(0, 3).join(', ')}. `;
-    } else {
-      summary += `with a general overview. `;
+    if (fillerResult.totalCount >= 3) {
+      return `Next attempt: Focus on pausing silently whenever you feel tempted to say "${Object.keys(fillerResult.breakdown)[0] || 'um'}".`;
     }
 
-    if (missingConcepts.length > 0) {
-      summary += `Your answer can be significantly improved by adding details on ${missingConcepts.slice(0, 2).join(' and ')}`;
-    }
-
-    if (structureResult.missingSteps.length > 0) {
-      summary += ` and following a complete ${structureResult.matchedSteps.length > 0 ? 'structure' : 'PREP framework'}.`;
-    } else {
-      summary += ` with strong structural organization.`;
-    }
-
-    return summary;
+    return `Next attempt: State your main answer in your first sentence, follow with a reason ("because..."), and include one example ("for example...").`;
   },
 
   generateEmptyAnalysis(topicObj, frameworkId) {
@@ -683,27 +572,33 @@ const FluentAnalyzer = {
       fillerWordsCount: 0,
       fillerBreakdown: {},
       frameworkName: (typeof FluentFrameworks !== 'undefined' && FluentFrameworks.getById) ? FluentFrameworks.getById(frameworkId).name : 'PREP',
-      structureFound: [],
-      summary: `No speech audio detected. Speak directly into your microphone about ${topicObj.text}.`,
-      strengths: ['Started a recording session.'],
-      improvements: ['Ensure your microphone is enabled and speak clearly into the device.'],
-      contentAnalysis: { explained: [], missing: ['Core definition', 'Technical explanation'], clarificationNeeded: [] },
-      betterWayToSayIt: {
-        original: "No speech detected.",
-        improved: `Start speaking directly about ${topicObj.text} using the PREP structure.`,
-        reason: "Clear articulation requires active speech input."
+      whatYouDidWell: ['Started a practice session.'],
+      whatToImprove: ['Ensure your microphone is enabled and speak clearly into the device.'],
+      speechStructure: {
+        frameworkName: 'PREP',
+        currentStructure: 'No speech detected',
+        recommendedStructure: 'Answer → Reason → Example → Summary',
+        practicalTip: 'Start speaking directly about the topic.'
       },
-      alternatives: [
+      betterWayToSayIt: [
         {
-          original: "No speech detected.",
-          improved: `Start speaking directly about ${topicObj.text} using the PREP structure.`,
-          reason: "Clear articulation requires active speech input."
+          original: 'No speech detected.',
+          improved: 'Start speaking directly about the topic.',
+          why: 'Speech practice requires active spoken input.'
         }
       ],
+      alternatives: [
+        {
+          original: 'No speech detected.',
+          improved: 'Start speaking directly about the topic.',
+          why: 'Speech practice requires active spoken input.'
+        }
+      ],
+      targetCareerVocabulary: { suggestions: [], message: 'No strong career-specific vocabulary appeared in this response.' },
       vocabularyOpportunities: [],
-      speakingHabits: { fillersCount: 0, fillerBreakdown: {}, repetition: { repeatedWords: [] }, wpmStatus: 'N/A' },
-      frameworkRecommendation: { id: 'prep', name: 'PREP', reason: 'Start with PREP to build structured speaking confidence.' },
-      nextAction: `Next attempt: Speak for 45 seconds about ${topicObj.text} using PREP.`
+      topicRelevance: { status: 'Low', explanation: 'No spoken audio detected.' },
+      nextAction: `Next attempt: Speak for 45 seconds about ${topicObj.text}.`,
+      summary: 'No speech audio detected.'
     };
   }
 };

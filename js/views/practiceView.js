@@ -289,13 +289,13 @@ const FluentPracticeView = {
             </div>
           </div>
 
-          <!-- Executive Summary Card -->
-          <div style="background: var(--teal-light); border: 1px solid var(--teal-border); padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 20px;">
-            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--primary-teal-dark); letter-spacing: 0.05em; margin-bottom: 4px;">
-              EXECUTIVE SUMMARY
+          <!-- TOPIC RELEVANCE CARD -->
+          <div style="background: ${analysis.topicRelevance && analysis.topicRelevance.status.includes('Off-Topic') ? '#fef2f2' : 'var(--teal-light)'}; border: 1px solid ${analysis.topicRelevance && analysis.topicRelevance.status.includes('Off-Topic') ? '#f87171' : 'var(--teal-border)'}; padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 20px;">
+            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: ${analysis.topicRelevance && analysis.topicRelevance.status.includes('Off-Topic') ? '#b91c1c' : 'var(--primary-teal-dark)'}; letter-spacing: 0.05em; margin-bottom: 4px;">
+              TOPIC RELEVANCE: ${analysis.topicRelevance ? analysis.topicRelevance.status : 'High'}
             </div>
             <div style="font-size: 0.95rem; color: var(--text-main); line-height: 1.5;">
-              ${analysis.summary || 'Solid speech practice session completed.'}
+              ${analysis.topicRelevance ? analysis.topicRelevance.explanation : analysis.summary}
             </div>
           </div>
 
@@ -303,7 +303,7 @@ const FluentPracticeView = {
           <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;">
             <div style="background: var(--bg-subtle); padding: 12px; border-radius: var(--radius-md); text-align: center;">
               <div style="font-weight: 700; color: var(--text-main); font-size: 1.1rem;">${analysis.wpm || 130} WPM</div>
-              <div style="font-size: 0.725rem; color: var(--text-muted);">Pace (${analysis.speakingHabits ? analysis.speakingHabits.wpmStatus : 'Optimal'})</div>
+              <div style="font-size: 0.725rem; color: var(--text-muted);">Speaking Pace</div>
             </div>
             <div style="background: var(--bg-subtle); padding: 12px; border-radius: var(--radius-md); text-align: center;">
               <div style="font-weight: 700; color: ${analysis.fillerWordsCount > 2 ? '#dc2626' : 'var(--primary-teal)'}; font-size: 1.1rem;">
@@ -328,10 +328,10 @@ const FluentPracticeView = {
             <div class="feedback-card">
               <div class="feedback-card-title success">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
-                What You Did Well
+                WHAT YOU DID WELL
               </div>
               <ul class="feedback-list">
-                ${(analysis.strengths || []).map(s => `
+                ${(analysis.whatYouDidWell || analysis.strengths || []).map(s => `
                   <li class="feedback-item">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                     <span>${s}</span>
@@ -343,10 +343,10 @@ const FluentPracticeView = {
             <div class="feedback-card">
               <div class="feedback-card-title warning">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Grounded Improvements
+                WHAT TO IMPROVE
               </div>
               <ul class="feedback-list">
-                ${(analysis.improvements || []).map(imp => `
+                ${(analysis.whatToImprove || analysis.improvements || []).map(imp => `
                   <li class="feedback-item">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
                     <span>${imp}</span>
@@ -356,72 +356,75 @@ const FluentPracticeView = {
             </div>
           </div>
 
-          <!-- Sentence-by-Sentence Better Alternatives Section -->
-          ${(analysis.alternatives && analysis.alternatives.length > 0) ? `
-            <div style="margin-bottom: 24px;">
-              <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <span>Targeted Sentence Alternatives</span>
-                <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted);">Ground truth quotes from your speech</span>
-              </div>
-              ${analysis.alternatives.map((alt, idx) => `
-                <div class="comparison-box" style="margin-bottom: 12px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                    <span class="comparison-label">YOU SAID (Excerpt ${idx + 1})</span>
-                  </div>
-                  <div class="comparison-original">"${alt.original}"</div>
-                  <div class="comparison-label">CLEARER / STRONGER ALTERNATIVE</div>
-                  <div class="comparison-improved">"${alt.improved}"</div>
-                  <div class="comparison-reason"><strong>Why this is better:</strong> ${alt.reason}</div>
-                </div>
-              `).join('')}
+          <!-- SPEECH STRUCTURE COACHING CARD -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 24px;">
+            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary-teal)" stroke-width="2.5"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+              SPEECH STRUCTURE COACHING
             </div>
-          ` : (analysis.betterWayToSayIt ? `
-            <div style="margin-bottom: 24px;">
-              <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
-                Better Way To Say It
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div style="background: var(--bg-subtle); padding: 12px; border-radius: var(--radius-sm);">
+                <div style="font-size: 0.725rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">CURRENT STRUCTURE DETECTED</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-top: 4px;">${analysis.speechStructure ? analysis.speechStructure.currentStructure : 'Opening Statement'}</div>
               </div>
-              <div class="comparison-box">
-                <div class="comparison-label">You Said</div>
-                <div class="comparison-original">"${analysis.betterWayToSayIt.original}"</div>
-                <div class="comparison-label">Clearer Alternative</div>
-                <div class="comparison-improved">"${analysis.betterWayToSayIt.improved}"</div>
-                <div class="comparison-reason"><strong>Why it is stronger:</strong> ${analysis.betterWayToSayIt.reason}</div>
+              <div style="background: var(--teal-light); border: 1px solid var(--teal-border); padding: 12px; border-radius: var(--radius-sm);">
+                <div style="font-size: 0.725rem; font-weight: 700; color: var(--primary-teal-dark); text-transform: uppercase;">RECOMMENDED STRUCTURE</div>
+                <div style="font-size: 0.9rem; font-weight: 700; color: var(--primary-teal-dark); margin-top: 4px;">${analysis.speechStructure ? analysis.speechStructure.recommendedStructure : 'Answer → Reason → Example → Summary'}</div>
               </div>
             </div>
-          ` : '')}
+            <div style="font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-subtle); padding: 10px 14px; border-radius: var(--radius-sm);">
+              💡 <strong>Practical Structure Tip:</strong> ${analysis.speechStructure ? analysis.speechStructure.practicalTip : 'Start your answer in sentence one by directly defining your main point.'}
+            </div>
+          </div>
 
-          <!-- Career Vocabulary Upgrades -->
-          ${(analysis.vocabularyOpportunities && analysis.vocabularyOpportunities.length > 0) ? `
-            <div style="margin-bottom: 24px;">
-              <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
-                Topic-Specific Career Vocabulary Upgrades
+          <!-- BETTER WAY TO SAY IT (Sentence-by-Sentence Corrections) -->
+          <div style="margin-bottom: 24px;">
+            <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <span>BETTER WAY TO SAY IT</span>
+              <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted);">Quotes from your actual speech</span>
+            </div>
+            ${(analysis.betterWayToSayIt && analysis.betterWayToSayIt.length > 0) ? analysis.betterWayToSayIt.map((alt, idx) => `
+              <div class="comparison-box" style="margin-bottom: 12px;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">YOU SAID (Quote ${idx + 1})</div>
+                <div class="comparison-original">"${alt.original}"</div>
+                <div style="font-size: 0.75rem; font-weight: 700; color: #065f46; text-transform: uppercase; margin-bottom: 4px;">CLEARER / NATURAL VERSION</div>
+                <div class="comparison-improved">"${alt.improved}"</div>
+                <div class="comparison-reason"><strong>Why:</strong> ${alt.why}</div>
               </div>
-              <div style="background: var(--bg-surface); border: 1px solid var(--teal-border); border-radius: var(--radius-md); padding: 14px 18px;">
-                ${analysis.vocabularyOpportunities.map(v => `
-                  <div style="margin-bottom: 10px; font-size: 0.875rem; color: var(--text-main);">
-                    Instead of casual phrasing <em>"${v.casual}"</em>, use <strong style="color: var(--primary-teal); font-weight: 700;">${v.recommended}</strong>.
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
-                      💡 <em>${v.def}</em>
-                    </div>
+            `).join('') : ''}
+          </div>
+
+          <!-- TARGET CAREER VOCABULARY -->
+          <div style="margin-bottom: 24px;">
+            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
+              TARGET CAREER VOCABULARY
+            </div>
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 14px 18px;">
+              ${analysis.targetCareerVocabulary && analysis.targetCareerVocabulary.suggestions && analysis.targetCareerVocabulary.suggestions.length > 0 ? `
+                ${analysis.targetCareerVocabulary.suggestions.map(v => `
+                  <div style="margin-bottom: 8px; font-size: 0.875rem; color: var(--text-main);">
+                    Instead of casual phrasing <em>"${v.casual}"</em>, consider using <strong style="color: var(--primary-teal); font-weight: 700;">${v.recommended}</strong>.
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">${v.explanation}</div>
                   </div>
                 `).join('')}
-              </div>
+              ` : `
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">
+                  ${analysis.targetCareerVocabulary ? analysis.targetCareerVocabulary.message : 'No strong career-specific vocabulary appeared in this response.'}
+                </div>
+              `}
             </div>
-          ` : ''}
+          </div>
 
-          <!-- Recommended Framework & ONE NEXT ACTION Card -->
+          <!-- NEXT PRACTICE ACTION Card -->
           <div style="background: var(--bg-surface); border: 2px solid var(--primary-teal); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary-teal)" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               <span style="font-size: 0.8rem; font-weight: 800; text-transform: uppercase; color: var(--primary-teal); letter-spacing: 0.05em;">
-                ONE NEXT ACTION FOR YOUR NEXT ATTEMPT
+                NEXT PRACTICE ACTION
               </span>
             </div>
-            <div style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
+            <div style="font-size: 1rem; font-weight: 700; color: var(--text-main);">
               ${analysis.nextAction || 'Practice speaking on this topic for 60 seconds using the PREP framework.'}
-            </div>
-            <div style="font-size: 0.85rem; color: var(--text-secondary);">
-              <strong>Recommended Framework:</strong> ${analysis.frameworkRecommendation ? analysis.frameworkRecommendation.name : 'PREP'} — ${analysis.frameworkRecommendation ? analysis.frameworkRecommendation.reason : 'Follow PREP to structure your answer.'}
             </div>
           </div>
 
@@ -446,4 +449,5 @@ const FluentPracticeView = {
   }
 };
 window.FluentPracticeView = FluentPracticeView;
+
 
